@@ -1,70 +1,40 @@
 package com.gonglian.model;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/**
- * 账单实体类
- */
 @Data
-@EqualsAndHashCode(callSuper = false)
 @TableName("bills")
 public class Bills {
 
-    /**
-     * 主键ID
-     */
-    @TableId(value = "id", type = IdType.AUTO)
-    private Integer id;
+    @TableId(type = IdType.AUTO)
+    private Long id;
 
-    /**
-     * 接单用户id
-     */
-    private Integer userId;
-
-    /**
-     * 平台
-     */
+    @TableField("user_id")
+    private Long userId;
+    
     private Integer platform;
-
-    /**
-     * 游戏ID
-     */
+    
+    @TableField("game_id")
     private Integer gameId;
-
-    /**
-     * 价格
-     */
+    
     private BigDecimal price;
-
+    
+    private Double duration;
+    
+    private String ranked;
+    
     /**
-     * 时长
-     */
-    private Float duration;
-
-    /**
-     * 段位
-     */
-    private String rank;
-
-    /**
-     * 是否结算 0-未结算 1-已结算
+     * 订单状态：0-未结算，1-已结算
      */
     private Boolean settled;
-
-    /**
-     * 创建时间
-     */
+    
+    @TableField("created_at")
     private LocalDateTime createdAt;
-
-    /**
-     * 更新时间
-     */
+    
+    @TableField("updated_at")
     private LocalDateTime updatedAt;
 } 

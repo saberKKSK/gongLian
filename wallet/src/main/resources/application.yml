@@ -4,56 +4,56 @@ server:
     context-path: /api
 
 spring:
+  main:
+    allow-circular-references: true
   application:
     name: gonglian-service
-  
-  # 数据库配置
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/wallte?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
     username: root
     password: admin
-  
-
-  # Security配置
-  security:
-    filter:
-      order: 10
   data:
-    # Redis配置
     redis:
-      port: 6379
       host: 47.122.24.43
+      port: 6379
       database: 0
+      password: 200152
+      timeout: 5000
+      lettuce:
+        pool:
+          max-active: 8
+          max-wait: -1
+          max-idle: 8
+          min-idle: 0
 
-# MyBatis Plus配置
 mybatis-plus:
   configuration:
-    map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    map-underscore-to-camel-case: true
   global-config:
     db-config:
-      id-type: auto
-      logic-delete-field: deleted
       logic-delete-value: 1
       logic-not-delete-value: 0
 
-# Swagger配置
-springdoc:
-  api-docs:
-    path: /v3/api-docs
-  swagger-ui:
-    path: /swagger-ui.html
-    tags-sorter: alpha
-    operations-sorter: alpha
-
-# JWT配置
 jwt:
-  secret: your-secret-key
-  expiration: 86400000  # 24小时
+  secret: 8677df7fc3a34e26a61c034d5ec8245d
+  expiration: 86400000
 
-# 日志配置
 logging:
   level:
     root: INFO
     com.gonglian: DEBUG
+    org.springframework.security: DEBUG
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  packages-to-scan: com.gonglian.controller
+  show-actuator: false

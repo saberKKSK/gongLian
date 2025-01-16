@@ -3,6 +3,7 @@ package com.gonglian.utils;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -19,25 +20,26 @@ public class JwtUtil {
     private String secret;
 
     @Value("${jwt.expiration}")
+    @Getter
     private Long expiration;
 
     /**
      * 获取加密密钥
      */
     private SecretKey getSigningKey() {
-        byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
-        return Keys.hmacShaKeyFor(keyBytes);
+        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
     /**
      * 生成JWT令牌
      */
-    public String generateToken(String username) {
+    public String generateToken(String username, Long userId) {
         return Jwts.builder()
                 .subject(username)
+                .claim("userId", userId.toString())
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expiration))
-                .signWith(getSigningKey())
+                .signWith(getSigningKey(), Jwts.SIG.HS256)
                 .compact();
     }
 
@@ -50,19 +52,6 @@ public class JwtUtil {
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
-    }
-
-    /**
-     * 验证令牌是否过期
-     */
-    public boolean isTokenExpired(String token) {
-        try {
-            Claims claims = getClaims(token);
-            return claims.getExpiration().before(new Date());
-        } catch (Exception e) {
-            log.error("Token validation error", e);
-            return true;
-        }
     }
 
     /**
@@ -79,6 +68,19 @@ public class JwtUtil {
     }
 
     /**
+     * 验证令牌是否过期
+     */
+    public boolean isTokenExpired(String token) {
+        try {
+            Claims claims = getClaims(token);
+            return claims.getExpiration().before(new Date());
+        } catch (Exception e) {
+            log.error("Token validation error", e);
+            return true;
+        }
+    }
+
+    /**
      * 验证令牌
      */
     public boolean validateToken(String token, String username) {
@@ -88,6 +90,19 @@ public class JwtUtil {
         } catch (Exception e) {
             log.error("Token validation error", e);
             return false;
+        }
+    }
+
+    /**
+     * 从令牌中获取用户ID
+     */
+    public Long getUserIdFromToken(String token) {
+        try {
+            Claims claims = getClaims(token);
+            return Long.parseLong(claims.get("userId", String.class));
+        } catch (Exception e) {
+            log.error("Error getting userId from token", e);
+            return null;
         }
     }
 } 
