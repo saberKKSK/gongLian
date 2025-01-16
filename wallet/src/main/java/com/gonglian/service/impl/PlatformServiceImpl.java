@@ -6,7 +6,8 @@ import com.gonglian.mapper.PlatformMapper;
 import com.gonglian.model.Platforms;
 import com.gonglian.service.PlatformService;
 import com.gonglian.utils.JwtUtil;
-import jakarta.servlet.http.HttpServletRequest;
+import com.gonglian.utils.RedisUtil;
+import com.gonglian.constant.RedisKeyConstant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -17,58 +18,55 @@ import java.util.List;
 public class PlatformServiceImpl implements PlatformService {
 
     private final PlatformMapper platformMapper;
-    private final JwtUtil jwtUtil;
-    private final HttpServletRequest request;
+    private final RedisUtil redisUtil;
 
     @Override
     public List<Platforms> getPlatformList() {
-        String token = request.getHeader("Authorization").substring(7);
-        Long userId = jwtUtil.getUserIdFromToken(token);
+        // 先从Redis获取
+        List<Platforms> platforms = redisUtil.getList(RedisKeyConstant.PLATFORM_LIST_KEY, Platforms.class);
+        if (platforms != null && !platforms.isEmpty()) {
+            return platforms;
+        }
 
-        return platformMapper.selectList(new LambdaQueryWrapper<Platforms>()
+        // Redis没有，从数据库获取
+        platforms = platformMapper.selectList(new LambdaQueryWrapper<Platforms>()
                 .orderByAsc(Platforms::getPlatformId));
+        
+        // 存入Redis
+        if (!platforms.isEmpty()) {
+            redisUtil.setList(RedisKeyConstant.PLATFORM_LIST_KEY, platforms, RedisKeyConstant.CACHE_EXPIRE_TIME);
+        }
+        
+        return platforms;
     }
 
     @Override
     public Platforms addPlatform(Platforms platform) {
-        String token = request.getHeader("Authorization").substring(7);
-        Long userId = jwtUtil.getUserIdFromToken(token);
-        
-        platform.setUserId(userId);
         platformMapper.insert(platform);
+        // 删除缓存，下次查询时重新加载
+        redisUtil.delete(RedisKeyConstant.PLATFORM_LIST_KEY);
         return platform;
     }
 
     @Override
     public void deletePlatform(Integer platformId) {
-        String token = request.getHeader("Authorization").substring(7);
-        Long userId = jwtUtil.getUserIdFromToken(token);
-
-        LambdaQueryWrapper<Platforms> wrapper = new LambdaQueryWrapper<Platforms>()
-                .eq(Platforms::getPlatformId, platformId)
-                .eq(Platforms::getUserId, userId);
-
-        if (platformMapper.delete(wrapper) == 0) {
-            throw new BusinessException("平台不存在或无权删除");
+        if (platformMapper.deleteById(platformId) == 0) {
+            throw new BusinessException("平台不存在");
         }
+        // 删除缓存
+        redisUtil.delete(RedisKeyConstant.PLATFORM_LIST_KEY);
     }
 
     @Override
     public Platforms updatePlatform(Platforms platform) {
-        String token = request.getHeader("Authorization").substring(7);
-        Long userId = jwtUtil.getUserIdFromToken(token);
-
-        LambdaQueryWrapper<Platforms> wrapper = new LambdaQueryWrapper<Platforms>()
-                .eq(Platforms::getPlatformId, platform.getPlatformId())
-                .eq(Platforms::getUserId, userId);
-
-        Platforms existingPlatform = platformMapper.selectOne(wrapper);
+        Platforms existingPlatform = platformMapper.selectById(platform.getPlatformId());
         if (existingPlatform == null) {
-            throw new BusinessException("平台不存在或无权修改");
+            throw new BusinessException("平台不存在");
         }
-
-        platform.setUserId(userId);
+        
         platformMapper.updateById(platform);
+        // 删除缓存
+        redisUtil.delete(RedisKeyConstant.PLATFORM_LIST_KEY);
         return platform;
     }
 } 

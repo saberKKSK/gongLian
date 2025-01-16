@@ -17,38 +17,33 @@ import java.time.LocalDateTime;
 public class Games {
 
     /**
-     * 游戏的唯一标识符，自增主键
+     * 游戏ID
      */
     @TableId(value = "game_id", type = IdType.AUTO)
     private Integer gameId;
 
     /**
-     * 用户ID，关联到 users 表的 user_id
-     */
-    private Long userId;
-
-    /**
-     * 游戏名称（如 "APEX"、"LOL"、"王者荣耀"）
+     * 游戏名称
      */
     private String gameName;
 
     /**
-     * 游戏代码（如 "APEX" 代表 APEX Legends）
+     * 游戏代码
      */
     private String gameCode;
 
     /**
-     * 游戏描述信息，可选
+     * 游戏描述
      */
     private String description;
 
     /**
-     * 记录创建时间
+     * 创建时间
      */
     private LocalDateTime createdAt;
 
     /**
-     * 记录更新时间
+     * 更新时间
      */
     private LocalDateTime updatedAt;
 } 
