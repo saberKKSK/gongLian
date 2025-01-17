@@ -16,7 +16,7 @@ public class CreatePlatformDTO {
     
     @Schema(description = "平台名称")
     @NotBlank(message = "平台名称不能为空")
-    private String name;
+    private String platformName;
     
     @Schema(description = "平台描述")
     private String description;

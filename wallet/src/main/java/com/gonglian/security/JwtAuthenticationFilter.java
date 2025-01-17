@@ -1,5 +1,7 @@
 package com.gonglian.security;
 
+import com.gonglian.mapper.UserMapper;
+import com.gonglian.model.Users;
 import com.gonglian.utils.JwtUtil;
 import com.gonglian.utils.RedisUtil;
 import jakarta.servlet.FilterChain;
@@ -9,14 +11,14 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Collections;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -26,14 +28,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil;
     private final RedisUtil redisUtil;
     private final UserDetailsService userDetailsService;
+    private final UserMapper userMapper;
 
     public JwtAuthenticationFilter(
             JwtUtil jwtUtil,
             RedisUtil redisUtil,
-            UserDetailsService userDetailsService) {
+            UserDetailsService userDetailsService,
+            UserMapper userMapper) {
         this.jwtUtil = jwtUtil;
         this.redisUtil = redisUtil;
         this.userDetailsService = userDetailsService;
+        this.userMapper = userMapper;
     }
 
     @Override
@@ -45,41 +50,50 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String requestURI = request.getRequestURI();
         log.debug("Processing request for URI: {}", requestURI);
         
-        final String authHeader = request.getHeader("Authorization");
-        log.debug("Auth header: {}", authHeader);
-        
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            log.debug("No valid auth header found for URI: {}", requestURI);
-            filterChain.doFilter(request, response);
-            return;
-        }
-
         try {
-            final String jwt = authHeader.substring(7);
-            final String username = jwtUtil.getUsernameFromToken(jwt);
-            log.debug("Username from token: {}", username);
-
-            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                log.debug("User details loaded: {}", userDetails);
+            final String authHeader = request.getHeader("Authorization");
+            log.debug("Auth header: {}", authHeader);
+            
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                final String jwt = authHeader.substring(7);
+                final String username = jwtUtil.getUsernameFromToken(jwt);
+                log.debug("Username from token: {}", username);
                 
-                if (redisUtil.validateToken(username, jwt)) {
-                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        userDetails,
-                        null,
-                        userDetails.getAuthorities()
-                    );
-                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
-                    log.debug("Authentication set in context for user: {}", username);
-                } else {
-                    log.warn("Token validation failed for user: {}", username);
+                if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                    Users user = userMapper.findByUsername(username);
+                    log.debug("User found: {}, role: {}", user.getUsername(), user.getRole());
+                    
+                    UsernamePasswordAuthenticationToken authToken = getAuthentication(jwt);
+                    if (authToken != null) {
+                        log.debug("Auth token created with authorities: {}", authToken.getAuthorities());
+                        SecurityContextHolder.getContext().setAuthentication(authToken);
+                    } else {
+                        log.warn("Failed to create auth token");
+                    }
                 }
             }
         } catch (Exception e) {
-            log.error("Error processing JWT token", e);
+            log.error("Authentication error", e);
         }
         
         filterChain.doFilter(request, response);
+    }
+
+    private UsernamePasswordAuthenticationToken getAuthentication(String token) {
+        String username = jwtUtil.getUsernameFromToken(token);
+        if (username != null) {
+            Users user = userMapper.findByUsername(username);
+            if (user != null) {
+                String role = user.getRole().name();
+                log.debug("User role: {}", role);
+                
+                return new UsernamePasswordAuthenticationToken(
+                    user,
+                    null, 
+                    Collections.singleton(new SimpleGrantedAuthority(role))
+                );
+            }
+        }
+        return null;
     }
 } 

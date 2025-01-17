@@ -65,19 +65,7 @@ public class Users {
      * 用户角色枚举
      */
     public enum UserRole {
-        /**
-         * 司机
-         */
-        driver,
-        
-        /**
-         * 商家
-         */
-        merchant,
-        
-        /**
-         * 管理员
-         */
-        admin
+        ADMIN,
+        USER
     }
 } 

@@ -1,6 +1,7 @@
 package com.gonglian.model;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -26,6 +27,7 @@ public class Platforms {
     /**
      * 用户ID，关联到 users 表的 user_id
      */
+    @TableField("user_id")
     private Long userId;
 
     /**
@@ -52,4 +54,5 @@ public class Platforms {
      * 记录更新时间
      */
     private LocalDateTime updatedAt;
+
 } 

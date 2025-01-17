@@ -1,20 +1,20 @@
 package com.gonglian.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.bean.copier.CopyOptions;
+import com.gonglian.constant.RedisKeyConstant;
+import com.gonglian.dto.CreatePlatformDTO;
+import com.gonglian.dto.PlatformDTO;
 import com.gonglian.exception.BusinessException;
 import com.gonglian.mapper.PlatformMapper;
 import com.gonglian.model.Platforms;
 import com.gonglian.service.PlatformService;
-import com.gonglian.utils.JwtUtil;
 import com.gonglian.utils.RedisUtil;
-import com.gonglian.constant.RedisKeyConstant;
+import com.gonglian.utils.SecurityUtils;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
-import cn.hutool.core.bean.BeanUtil;
-import cn.hutool.core.bean.copier.CopyOptions;
-import com.gonglian.dto.CreatePlatformDTO;
-import com.gonglian.dto.PlatformDTO;
+import org.springframework.stereotype.Service;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -39,6 +39,11 @@ public class PlatformServiceImpl implements PlatformService {
     @Override
     public PlatformDTO addPlatform(CreatePlatformDTO createPlatformDTO) {
         Platforms platform = BeanUtil.toBean(createPlatformDTO, Platforms.class);
+        
+        // 设置当前用户ID
+        platform.setUserId(SecurityUtils.getCurrentUserId());
+        
+        // 设置时间
         LocalDateTime now = LocalDateTime.now();
         platform.setCreatedAt(now);
         platform.setUpdatedAt(now);

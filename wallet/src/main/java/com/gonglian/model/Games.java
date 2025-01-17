@@ -22,6 +22,13 @@ public class Games {
     @TableId(value = "game_id", type = IdType.AUTO)
     private Integer gameId;
 
+
+    /**
+     * 游戏ID
+     */
+    private Long userId;
+
+
     /**
      * 游戏名称
      */
