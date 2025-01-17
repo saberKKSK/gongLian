@@ -52,4 +52,17 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException("用户名或密码错误");
         }
     }
+
+    @Override
+    public void logout(String token) {
+        if (token != null && token.startsWith("Bearer ")) {
+            token = token.substring(7);
+        }
+        String username = jwtUtil.getUsernameFromToken(token);
+        if (username != null) {
+            // 从Redis中删除token
+            redisUtil.delete("token:" + username);
+            log.info("用户 {} 退出登录", username);
+        }
+    }
 } 

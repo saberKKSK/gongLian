@@ -6,6 +6,7 @@ import com.gonglian.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,5 +29,13 @@ public class AuthController {
             @Valid @RequestBody LoginDTO loginDTO) {
         String token = authService.login(loginDTO);
         return ResponseResult.success(token);
+    }
+
+    @Operation(summary = "退出登录", description = "清除用户token")
+    @PostMapping("/logout")
+    public ResponseResult<Void> logout(HttpServletRequest request) {
+        String token = request.getHeader("Authorization");
+        authService.logout(token);
+        return ResponseResult.success(null);
     }
 } 

@@ -80,4 +80,11 @@ public class BillController {
         return ResponseResult.success(null);
     }
 
+    @Operation(summary = "段位统计", description = "获取指定平台下未结算订单的段位分组统计")
+    @GetMapping("/rank-stats/{platformId}")
+    public ResponseResult<List<RankGroupDTO>> getUnsettledOrdersByRank(
+            @Parameter(description = "平台ID") @PathVariable Integer platformId) {
+        return ResponseResult.success(billService.getUnsettledOrdersByRank(platformId));
+    }
+
 } 

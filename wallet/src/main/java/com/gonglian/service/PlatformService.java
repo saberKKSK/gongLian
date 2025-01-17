@@ -1,11 +1,12 @@
 package com.gonglian.service;
 
-import com.gonglian.model.Platforms;
+import com.gonglian.dto.CreatePlatformDTO;
+import com.gonglian.dto.PlatformDTO;
 import java.util.List;
 
 public interface PlatformService {
-    List<Platforms> getPlatformList();
-    Platforms addPlatform(Platforms platform);
+    List<PlatformDTO> getPlatformList();
+    PlatformDTO addPlatform(CreatePlatformDTO createPlatformDTO);
     void deletePlatform(Integer platformId);
-    Platforms updatePlatform(Platforms platform);
+    PlatformDTO updatePlatform(Integer platformId, CreatePlatformDTO updatePlatformDTO);
 } 

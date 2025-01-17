@@ -1,35 +1,26 @@
 package com.gonglian.service.impl;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
-
+import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.bean.copier.CopyOptions;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.gonglian.dto.BillDTO;
-import com.gonglian.dto.CreateBillDTO;
-import com.gonglian.dto.IncomeOverviewDTO;
-import com.gonglian.dto.OrderDetailDTO;
-import com.gonglian.dto.OrderQueryDTO;
-import com.gonglian.dto.PageDTO;
-import com.gonglian.dto.ShopStatsDTO;
-import com.gonglian.dto.UnsettledOrdersDTO;
+import com.gonglian.dto.*;
 import com.gonglian.exception.BusinessException;
 import com.gonglian.mapper.BillMapper;
 import com.gonglian.model.Bills;
 import com.gonglian.service.BillService;
 import com.gonglian.utils.JwtUtil;
-
-import cn.hutool.core.bean.BeanUtil;
-import cn.hutool.core.bean.copier.CopyOptions;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -270,6 +261,46 @@ public class BillServiceImpl implements BillService {
         bill.setSettled(true);
         bill.setUpdatedAt(LocalDateTime.now());
         billMapper.updateById(bill);
+    }
+
+    @Override
+    public List<RankGroupDTO> getUnsettledOrdersByRank(Integer platformId) {
+        String token = request.getHeader("Authorization").substring(7);
+        Long userId = jwtUtil.getUserIdFromToken(token);
+
+        // 查询未结算订单
+        List<Bills> bills = billMapper.selectList(
+            new LambdaQueryWrapper<Bills>()
+                .eq(Bills::getUserId, userId)
+                .eq(Bills::getPlatform, platformId)
+                .eq(Bills::getSettled, false)
+                .orderByDesc(Bills::getCreatedAt)
+        );
+
+        // 按段位分组
+        return bills.stream()
+                .collect(Collectors.groupingBy(Bills::getRanked))
+                .entrySet()
+                .stream()
+                .map(entry -> {
+                    List<Bills> rankBills = entry.getValue();
+                    return RankGroupDTO.builder()
+                            .rank(entry.getKey())
+                            .totalAmount(rankBills.stream()
+                                    .map(Bills::getPrice)
+                                    .reduce(BigDecimal.ZERO, BigDecimal::add))
+                            .totalDuration(rankBills.stream()
+                                    .mapToDouble(Bills::getDuration)
+                                    .sum())
+                            .build();
+                })
+                .sorted((a, b) -> {
+                    // 空段位排在最后
+                    if (a.getRank() == null) return 1;
+                    if (b.getRank() == null) return -1;
+                    return a.getRank().compareTo(b.getRank());
+                })
+                .collect(Collectors.toList());
     }
 
     private OrderDetailDTO convertToDTO(Bills bill) {

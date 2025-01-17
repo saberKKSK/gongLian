@@ -11,4 +11,11 @@ public interface AuthService {
      * @return JWT token
      */
     String login(LoginDTO loginDTO);
+
+    /**
+     * 用户退出登录
+     *
+     * @param token JWT token
+     */
+    void logout(String token);
 } 

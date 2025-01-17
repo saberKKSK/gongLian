@@ -10,63 +10,68 @@ import com.gonglian.utils.RedisUtil;
 import com.gonglian.constant.RedisKeyConstant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-
+import lombok.extern.slf4j.Slf4j;
+import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.bean.copier.CopyOptions;
+import com.gonglian.dto.CreatePlatformDTO;
+import com.gonglian.dto.PlatformDTO;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PlatformServiceImpl implements PlatformService {
 
     private final PlatformMapper platformMapper;
     private final RedisUtil redisUtil;
+    private static final CopyOptions DTO_COPY_OPTIONS = CopyOptions.create();
 
     @Override
-    public List<Platforms> getPlatformList() {
-        // 先从Redis获取
-        List<Platforms> platforms = redisUtil.getList(RedisKeyConstant.PLATFORM_LIST_KEY, Platforms.class);
-        if (platforms != null && !platforms.isEmpty()) {
-            return platforms;
-        }
-
-        // Redis没有，从数据库获取
-        platforms = platformMapper.selectList(new LambdaQueryWrapper<Platforms>()
-                .orderByAsc(Platforms::getPlatformId));
-        
-        // 存入Redis
-        if (!platforms.isEmpty()) {
-            redisUtil.setList(RedisKeyConstant.PLATFORM_LIST_KEY, platforms, RedisKeyConstant.CACHE_EXPIRE_TIME);
-        }
-        
-        return platforms;
+    public List<PlatformDTO> getPlatformList() {
+        List<Platforms> platforms = platformMapper.selectList(null);
+        return platforms.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
 
     @Override
-    public Platforms addPlatform(Platforms platform) {
+    public PlatformDTO addPlatform(CreatePlatformDTO createPlatformDTO) {
+        Platforms platform = BeanUtil.toBean(createPlatformDTO, Platforms.class);
+        LocalDateTime now = LocalDateTime.now();
+        platform.setCreatedAt(now);
+        platform.setUpdatedAt(now);
+        
         platformMapper.insert(platform);
-        // 删除缓存，下次查询时重新加载
         redisUtil.delete(RedisKeyConstant.PLATFORM_LIST_KEY);
-        return platform;
+        
+        return convertToDTO(platform);
     }
 
     @Override
     public void deletePlatform(Integer platformId) {
-        if (platformMapper.deleteById(platformId) == 0) {
-            throw new BusinessException("平台不存在");
-        }
-        // 删除缓存
+        platformMapper.deleteById(platformId);
         redisUtil.delete(RedisKeyConstant.PLATFORM_LIST_KEY);
     }
 
     @Override
-    public Platforms updatePlatform(Platforms platform) {
-        Platforms existingPlatform = platformMapper.selectById(platform.getPlatformId());
-        if (existingPlatform == null) {
+    public PlatformDTO updatePlatform(Integer platformId, CreatePlatformDTO updatePlatformDTO) {
+        Platforms platform = platformMapper.selectById(platformId);
+        if (platform == null) {
             throw new BusinessException("平台不存在");
         }
         
+        BeanUtil.copyProperties(updatePlatformDTO, platform, DTO_COPY_OPTIONS);
+        platform.setUpdatedAt(LocalDateTime.now());
+        
         platformMapper.updateById(platform);
-        // 删除缓存
         redisUtil.delete(RedisKeyConstant.PLATFORM_LIST_KEY);
-        return platform;
+        
+        return convertToDTO(platform);
+    }
+
+    private PlatformDTO convertToDTO(Platforms platform) {
+        return BeanUtil.toBean(platform, PlatformDTO.class);
     }
 } 
