@@ -1,25 +1,47 @@
 package com.gonglian.service.impl;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.gonglian.dto.*;
+import com.gonglian.dto.BillDTO;
+import com.gonglian.dto.CreateBillDTO;
+import com.gonglian.dto.IncomeOverviewDTO;
+import com.gonglian.dto.OrderDetailDTO;
+import com.gonglian.dto.OrderQueryDTO;
+import com.gonglian.dto.PageDTO;
+import com.gonglian.dto.ShopStatsDTO;
+import com.gonglian.dto.UnsettledOrdersDTO;
 import com.gonglian.exception.BusinessException;
 import com.gonglian.mapper.BillMapper;
 import com.gonglian.model.Bills;
 import com.gonglian.service.BillService;
 import com.gonglian.utils.JwtUtil;
+
+import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.bean.copier.CopyOptions;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
-
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class BillServiceImpl implements BillService {
+
+    private static final CopyOptions BILL_COPY_OPTIONS = CopyOptions.create()
+            .setIgnoreNullValue(true)
+            .setFieldMapping(Collections.singletonMap("rank", "ranked"));
+
+    private static final CopyOptions DTO_COPY_OPTIONS = CopyOptions.create()
+            .setFieldMapping(Collections.singletonMap("ranked", "rank"));
 
     private final BillMapper billMapper;
     private final JwtUtil jwtUtil;
@@ -160,18 +182,101 @@ public class BillServiceImpl implements BillService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public BillDTO createBill(CreateBillDTO createBillDTO) {
+        String token = request.getHeader("Authorization").substring(7);
+        Long userId = jwtUtil.getUserIdFromToken(token);
 
+        Bills bill = BeanUtil.toBean(createBillDTO, Bills.class, BILL_COPY_OPTIONS);
+        
+        // 设置额外字段
+        bill.setUserId(userId);
+        bill.setSettled(false);
+        LocalDateTime now = LocalDateTime.now();
+        bill.setCreatedAt(now);
+        bill.setUpdatedAt(now);
+
+        billMapper.insert(bill);
+        return BeanUtil.toBean(bill, BillDTO.class, DTO_COPY_OPTIONS);
+    }
+
+    @Override
+    public BillDTO updateBill(Long id, CreateBillDTO updateBillDTO) {
+        String token = request.getHeader("Authorization").substring(7);
+        Long userId = jwtUtil.getUserIdFromToken(token);
+
+        Bills existingBill = billMapper.selectOne(
+            new LambdaQueryWrapper<Bills>()
+                .eq(Bills::getId, id)
+                .eq(Bills::getUserId, userId)
+        );
+
+        if (existingBill == null) {
+            throw new BusinessException("订单不存在或无权修改");
+        }
+
+        if (existingBill.getSettled()) {
+            throw new BusinessException("已结算订单不能修改");
+        }
+
+        BeanUtil.copyProperties(updateBillDTO, existingBill, BILL_COPY_OPTIONS);
+        existingBill.setUpdatedAt(LocalDateTime.now());
+
+        billMapper.updateById(existingBill);
+        return BeanUtil.toBean(existingBill, BillDTO.class, DTO_COPY_OPTIONS);
+    }
+
+    @Override
+    public void deleteBill(Long id) {
+        String token = request.getHeader("Authorization").substring(7);
+        Long userId = jwtUtil.getUserIdFromToken(token);
+
+        Bills bill = billMapper.selectOne(
+            new LambdaQueryWrapper<Bills>()
+                .eq(Bills::getId, id)
+                .eq(Bills::getUserId, userId)
+        );
+
+        if (bill == null) {
+            throw new BusinessException("订单不存在或无权删除");
+        }
+
+        if (bill.getSettled()) {
+            throw new BusinessException("已结算订单不能删除");
+        }
+
+        billMapper.deleteById(id);
+    }
+
+    @Override
+    public void settleBill(Long id) {
+        String token = request.getHeader("Authorization").substring(7);
+        Long userId = jwtUtil.getUserIdFromToken(token);
+
+        Bills bill = billMapper.selectOne(
+            new LambdaQueryWrapper<Bills>()
+                .eq(Bills::getId, id)
+                .eq(Bills::getUserId, userId)
+        );
+
+        if (bill == null) {
+            throw new BusinessException("订单不存在或无权操作");
+        }
+
+        if (bill.getSettled()) {
+            throw new BusinessException("订单已结算");
+        }
+
+        bill.setSettled(true);
+        bill.setUpdatedAt(LocalDateTime.now());
+        billMapper.updateById(bill);
+    }
 
     private OrderDetailDTO convertToDTO(Bills bill) {
-        return OrderDetailDTO.builder()
-                .id(bill.getId())
-                .platform(bill.getPlatform())
-                .gameId(bill.getGameId())
-                .price(bill.getPrice())
-                .duration(bill.getDuration())
-                .rank(bill.getRanked())
-                .settled(bill.getSettled())
-                .createdAt(bill.getCreatedAt())
-                .build();
+        return BeanUtil.toBean(bill, OrderDetailDTO.class, DTO_COPY_OPTIONS);
+    }
+
+    private BillDTO convertToBillDTO(Bills bill) {
+        return BeanUtil.toBean(bill, BillDTO.class, DTO_COPY_OPTIONS);
     }
 } 

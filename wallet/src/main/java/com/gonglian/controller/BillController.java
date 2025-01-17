@@ -5,6 +5,7 @@ import com.gonglian.service.BillService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -47,6 +48,36 @@ public class BillController {
     @GetMapping("/shop-stats")
     public ResponseResult<List<ShopStatsDTO>> getShopStats() {
         return ResponseResult.success(billService.getShopStats());
+    }
+
+    @Operation(summary = "创建订单", description = "创建新的订单")
+    @PostMapping("/add")
+    public ResponseResult<BillDTO> createBill(@Valid @RequestBody CreateBillDTO createBillDTO) {
+        return ResponseResult.success(billService.createBill(createBillDTO));
+    }
+
+    @Operation(summary = "更新订单", description = "更新订单信息")
+    @PutMapping("/update/{id}")
+    public ResponseResult<BillDTO> updateBill(
+            @Parameter(description = "订单ID") @PathVariable Long id,
+            @Valid @RequestBody CreateBillDTO updateBillDTO) {
+        return ResponseResult.success(billService.updateBill(id, updateBillDTO));
+    }
+
+    @Operation(summary = "删除订单", description = "删除指定的订单")
+    @DeleteMapping("/delete/{id}")
+    public ResponseResult<Void> deleteBill(
+            @Parameter(description = "订单ID") @PathVariable Long id) {
+        billService.deleteBill(id);
+        return ResponseResult.success(null);
+    }
+
+    @Operation(summary = "结算订单", description = "将订单标记为已结算")
+    @PutMapping("/settle/{id}")
+    public ResponseResult<Void> settleBill(
+            @Parameter(description = "订单ID") @PathVariable Long id) {
+        billService.settleBill(id);
+        return ResponseResult.success(null);
     }
 
 } 
